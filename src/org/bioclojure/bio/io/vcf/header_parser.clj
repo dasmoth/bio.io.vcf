@@ -29,8 +29,12 @@
   (bind [descr (>> (token* "Description=") string-lit)]
         (return [:description descr])))
 
+(def ^:private length-field
+  (bind [len (>> (token* "length=") (<|> dec-lit (one-of ".AG")))]
+        (return [:length len])))
+
 (def ^:private metadata-field
-  (<|> id-field type-field number-field description-field))
+  (<|> id-field type-field number-field description-field length-field))
 
 (def ^:private key-val-list
   (bind [kvs (angles (comma-sep metadata-field))]

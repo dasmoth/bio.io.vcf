@@ -6,6 +6,7 @@
            [java.io IOException]))
 
 (def ^:private header? (partial re-find #"^#"))
+(def ^:private meta? (partial re-find #"^##"))
 
 (defn- open-input-stream
   "Open `s` as a BlockCompressedInputStream if it is in BGZF format, otherwise
@@ -28,9 +29,13 @@
   "Open a VCF for reading and parse the header. `vcf` can be anything
   understood by clojure.java.io/input-stream. Gzip-compressed data is
   detected and automatically decompressed."
-  [vcf]
+  [vcf & {:keys [skip-meta]}]
   (let [reader (io/reader (open-input-stream vcf))
-        headers (hp/parse-headers (take-while header? (line-seq reader)))]
+        header-lines (take-while header? (line-seq reader))
+        header-lines (if skip-meta
+                       (filter #(not (meta? %)) header-lines)
+                       header-lines)
+        headers (hp/parse-headers header-lines)]
     (VcfReader. reader headers)))
 
 (defn sample-ids
@@ -46,7 +51,7 @@
 
 (defn variant-seq*
   [vcf variant-parser]
-  (map variant-parser (line-seq (:reader vcf))))
+  (map variant-parser (drop-while header? (line-seq (:reader vcf)))))
 
 (defn basic-variant-seq
   "Return a lazy sequence of parsed variants from the VCF using a basic parser.
